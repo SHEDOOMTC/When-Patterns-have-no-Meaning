@@ -12,7 +12,7 @@ The data used here is from a malaria study **(unpublished)**, where we performed
 
 **Here is the hypothesis:**
 
-*Fluctuations and changes in the position of residues around the active can model the differences between a bound and unbound conformation. This fluctuations can be tracked by the **per-atom distances** between all possible residue-atom combinations of residues withing a cut-off distance from the ligand around the active site*
+*Fluctuations and changes in the position of residues around the active can model the differences between a bound and unbound conformation. This fluctuations can be tracked by the **per-atom distances** between all possible residue-atom combinations of residues withing a cut-off distance from the ligand around the active site. How close and changes in this closeness between these atoms can be easily captured with distances*
 
 To get the data, I defined the set of all **residues within 8Å** from the ligand:
 
