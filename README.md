@@ -1,4 +1,4 @@
-# When-Patterns-have-no-Meaning
+# When-Patterns-have-little-or-no-Meaning
 
 In the age of machine learning, coupled with the explosion of chemo-biological data from MD simulations, the goal is to leverage these to understand key drivers of changes, binding, catalysis at the macromolecular level.
 
@@ -8,7 +8,7 @@ Even though the authors strongly believes that such technique could be extended 
 
 What key residues are responsible for binding/conformational changes upon ligand binding--- that can be used to differentiate bound vs unbound conformations.
 
-The data used here is from a malaria study **(unpublished)**, where we performed 400ns simulations of the apo and MMVMMV019313-bound bifunctional farnesyl/geranylgeranyl pyrophosphate synthase (FPPS/GGPPS) from *Plasmodium falciparum*. 
+The data used here is from a malaria study **(unpublished)**, where we performed 400ns simulations of the apo and MMVMMV019313-bound bifunctional farnesyl/geranylgeranyl pyrophosphate synthase (FPPS/GGPPS) from *Plasmodium falciparum*. The dataset for this exercise as described below is large and so, will not be added to this repository. You can request it by sending an email **[here](Shadrachchinecheremeze@gmail.com)**
 
 **Here is the hypothesis:**
 
@@ -50,6 +50,21 @@ Load modules and read in the dataset
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import numpy as np
+import os
+import sys
+import time
+from sklearn.metrics import recall_score,accuracy_score,confusion_matrix, f1_score, precision_score, auc,roc_auc_score,roc_curve, precision_recall_curve
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.utils import resample
+from sklearn.model_selection import GridSearchCV,train_test_split
+from sklearn.metrics import (recall_score,accuracy_score,confusion_matrix, f1_score, precision_score, auc,roc_auc_score,roc_curve, precision_recall_curve,classification_report)
+from sklearn.neural_network import MLPClassifier
+from sklearn.ensemble import (RandomForestClassifier,GradientBoostingClassifier)
+from sklearn.linear_model import LogisticRegression
+from sklearn.gaussian_process import GaussianProcessClassifier
+import re
 
 # Your MXMD/clustering results
 df = pd.read_csv('/path-to-your-file/Full_dataset_Apo_MMV.csv')
@@ -66,7 +81,6 @@ cols = [col for col in df.columns if pattern.match(col)]
 cols.append("State")
 
 filtered_df = df[cols]
-# then we will fill the NAN with the max in each column (since it depicts non interacting); around 50A
 df_full = filtered_df.fillna(50)
 df_full.isna().sum().sum()
 df_full.isna().sum().sort_values(ascending=False)
@@ -84,3 +98,102 @@ df_features_numeric = df_features.select_dtypes(include=['float64'])
 df_importance = 1 / df_features_numeric
 df_scaled = (df_importance - df_importance.mean(axis=0)) / df_importance.std(axis=0)
 ```
+
+Then we recombine the datasets for ML training
+```python
+df_ml_ready = pd.concat([df_scaled, df_labels], axis=1)
+print("ML ready shape:", df_ml_ready.shape)
+print("Features:", df_scaled.shape[1], "Labels:", df_labels.name)
+```
+
+**Correlation Matrix and Feature size Reduction**
+
+We will visualize the correlation matrix of dataset inorder to remove highlighly correlated features
+```python
+#pull out all features from the dataframe (everything except for the last ID column)
+
+features_pre = df_ml_ready.iloc[:,:-1]
+print('# of features before drop:', features_pre.shape[1]+1)
+```
+
+**Before Filtering**
+```python
+# features_pre: your feature-only DataFrame (no labels)
+corr_matrix_before = features_pre.corr(min_periods=1).abs()
+cutoff = 0.9
+
+fig, ax = plt.subplots(1, figsize=(4,4), tight_layout=True)
+im = plt.imshow(corr_matrix_before, interpolation='nearest', origin='lower')
+cbar = ax.figure.colorbar(im, shrink=0.7, label='Absolute correlation')
+```
+**Filtering**
+```python
+#shuffle corr_matrix
+arr = np.arange(len(df_ml_ready.columns)-1)
+np.random.shuffle(arr) 
+corr_matrix = corr_matrix_before.iloc[arr,arr]
+
+#select upper triangle of correlation matrix to avoid duplicates in pairs
+upper = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool))
+
+#drop highly correlated features based on set threshold
+to_drop = [column for column in upper.columns if any(upper[column] > cutoff)]
+df_dropped = df_ml_ready.drop(columns = to_drop)
+print('Number of features after drop is:', df_dropped.shape[1]+1)
+```
+**After Filtering**
+```python
+features_postcorr = df_dropped.iloc[:,:-1]
+corr_matrix_after = features_postcorr.corr(min_periods=1).abs()
+
+fig, ax = plt.subplots(1, figsize=(4,4), tight_layout=True)
+im = plt.imshow(corr_matrix_after, interpolation='nearest', origin='lower')
+cbar = ax.figure.colorbar(im, shrink=0.7, label='Absolute correlation')
+```
+Extract the names of all the residues from the column heads and store them as strings
+```python
+def extract_residues(colname):
+    match = re.match(r"d_(\d+)_.*_(\d+)_.*", colname)
+    if match:
+        return int(match.group(1)), int(match.group(2))
+    return None, None
+for col in df_dropped.columns:
+    r1, r2 = extract_residues(col)
+    print(col, "→", r1, r2)
+residues = set()
+for col in df_dropped.columns:
+    r1, r2 = extract_residues(col)
+    if r1 is not None:
+        residues.add(r1)
+        residues.add(r2)
+residues = sorted(residues)
+len(residues)
+print(residues)
+```
+**Residue Importance (RI)**
+
+Residue importance defines how significant the residue is in differentiating the bound and unbound conformations
+
+This gives you the biologically meaningful answer: which residues drive the difference between unbound (apo) and bound (mmv). The meaningful output is a single residue‑importance profile that tells you which residues contribute most to distinguishing unbound from bound.
+
+We will create dataframes to store these residue importances. Since we will use three models (Random Forest, Logistic Regressor and MLP), we will have six dataframes (to cover the bound and unbound). However, the dataframes for the bound and unbound states in each model will return exactly same thing since RI is not assignable to either of the two states.
+
+```python
+LR_impo_res_apo=pd.DataFrame(columns = residues)
+RF_impo_res_apo=pd.DataFrame(columns = residues)
+LR_impo_res_mmv=pd.DataFrame(columns = residues)
+RF_impo_res_mmv=pd.DataFrame(columns = residues)
+mlp_impo_res_apo=pd.DataFrame(columns = residues)
+mlp_impo_res_mmv=pd.DataFrame(columns = residues)
+```
+We will re-assign the State labels (bound vs unbound) to (0 vs 1)
+```python
+df_dropped['State'] = df_dropped['State'].replace({'Unbound': 0, 'Bound': 1})
+df_dropped['State'] = df_dropped['State'].astype(int)
+df_dropped['State'].unique()
+```
+
+**The rest of the code for the model training and evaluation is available [here](Link)**
+
+I will show you the performance of LR model and the final plot of "Residue Importance" vs "Residue Index"
+
