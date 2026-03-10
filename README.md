@@ -8,7 +8,7 @@ Even though the authors strongly believes that such technique could be extended 
 
 What key residues are responsible for binding/conformational changes upon ligand binding--- that can be used to differentiate bound vs unbound conformations.
 
-The data used here is from a malaria study **(unpublished)**, where we performed 400ns simulations of the apo and MMVMMV019313-bound bifunctional farnesyl/geranylgeranyl pyrophosphate synthase (FPPS/GGPPS) from *Plasmodium falciparum*. The dataset for this exercise as described below is large and so, will not be added to this repository. You can request it by sending an email **[here](Shadrachchinecheremeze@gmail.com)**
+The data used here is from a malaria study **(unpublished)**, where we performed 400ns simulations of the apo and MMVMMV019313-bound bifunctional farnesyl/geranylgeranyl pyrophosphate synthase (FPPS/GGPPS) from *Plasmodium falciparum* (PDB ID: [9NSR](https://www.rcsb.org/structure/9NSR)). The dataset for this exercise as described below is large and so, will not be added to this repository. You can request it by sending an email **[here](Shadrachchinecheremeze@gmail.com)**
 
 **Here is the hypothesis:**
 
@@ -27,7 +27,7 @@ ATOMS=ATOMS <<< "N,CA,C,O,CB,CG,CD,CE,CZ,NE,NE1,NE2,NZ,OE1,OE2,OD1,OD2,SG,SD,CG1
 
 ```
 
-Then I sought to generate unique pairs of each of the residues and the atoms using this [bash file](Link). Next was to generate a list of distance between pairs, of all the residue-atom lists in a unidirectional way (A→B same as B→A) into *pair_generated.in* file. A crosssection looks like this:
+Then I sought to generate unique pairs of each of the residues and the atoms using this [bash file](files/residue-atom-pair-generator.sh). Next was to generate a list of distance between pairs, of all the residue-atom lists in a unidirectional way (A→B same as B→A) into *pair_generated.in* file. A crosssection looks like this:
 
 ```text
 distance d_63_CD_100_CG1 :63@CD :100@CG1 out d_63_CD_100_CG1.dat
@@ -35,7 +35,7 @@ distance d_63_CD_100_CG2 :63@CD :100@CG2 out d_63_CD_100_CG2.dat
 distance d_63_CD_100_CD1 :63@CD :100@CD1 out d_63_CD_100_CD1.dat
 .....
 ```
-This was used as the input file for the cpptraj command of ambertools. Due to the massive size of this file (containing a possible 1.8 million distances), it was feed into cpptraj at 5000 lines per time (corresponding to 350+ cycles) using this [script](Link). These data were merged and converted into csv files.
+This was used as the input file for the cpptraj command of ambertools. Due to the massive size of this file (containing a possible 1.8 million distances), it was feed into cpptraj at 5000 lines per time (corresponding to 350+ cycles) using this [script](files/distance_compute.sh). These data were merged and converted into csv files.
 
 **Concerning our trajectory**; 400ns simulation corresponds to 200000 frames at NTWRX=1000. So, we parsed it at a stride of 20 to give a total of 10,000 frames (or data points)
 
@@ -54,16 +54,6 @@ import numpy as np
 import os
 import sys
 import time
-from sklearn.metrics import recall_score,accuracy_score,confusion_matrix, f1_score, precision_score, auc,roc_auc_score,roc_curve, precision_recall_curve
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.utils import resample
-from sklearn.model_selection import GridSearchCV,train_test_split
-from sklearn.metrics import (recall_score,accuracy_score,confusion_matrix, f1_score, precision_score, auc,roc_auc_score,roc_curve, precision_recall_curve,classification_report)
-from sklearn.neural_network import MLPClassifier
-from sklearn.ensemble import (RandomForestClassifier,GradientBoostingClassifier)
-from sklearn.linear_model import LogisticRegression
-from sklearn.gaussian_process import GaussianProcessClassifier
 import re
 
 # Your MXMD/clustering results
@@ -126,6 +116,7 @@ fig, ax = plt.subplots(1, figsize=(4,4), tight_layout=True)
 im = plt.imshow(corr_matrix_before, interpolation='nearest', origin='lower')
 cbar = ax.figure.colorbar(im, shrink=0.7, label='Absolute correlation')
 ```
+
 **Filtering**
 ```python
 #shuffle corr_matrix
@@ -150,6 +141,8 @@ fig, ax = plt.subplots(1, figsize=(4,4), tight_layout=True)
 im = plt.imshow(corr_matrix_after, interpolation='nearest', origin='lower')
 cbar = ax.figure.colorbar(im, shrink=0.7, label='Absolute correlation')
 ```
+You can see the correlation matrix [before](/Images/Correlation_Before.png) and [after](/Images/Correlation_After.png) filtering here
+
 Extract the names of all the residues from the column heads and store them as strings
 ```python
 def extract_residues(colname):
@@ -169,6 +162,9 @@ for col in df_dropped.columns:
 residues = sorted(residues)
 len(residues)
 print(residues)
+```
+```text
+[63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 97, 98, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 117, 118, 138, 169, 170, 172, 173, 174, 175, 176, 177, 178, 180, 181, 218, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 258, 261, 262, 263, 264, 265, 266, 267, 268, 269, 270, 271, 272, 273, 287, 288, 289, 290, 291, 292, 366, 367, 369, 370, 371, 372, 373, 374, 375, 376, 377, 378]
 ```
 **Residue Importance (RI)**
 
@@ -195,5 +191,54 @@ df_dropped['State'].unique()
 
 **The rest of the code for the model training and evaluation is available [here](Link)**
 
-I will show you the performance of LR model and the final plot of "Residue Importance" vs "Residue Index"
+**The performance of models** 
+
+![Model Performance](/Images/Model_Performance.png)
+
+**Residue Importance plots**
+
+After the training, we can visualize the mean residue performance for each residue across the frames, for all the models
+
+```python
+LR_impo_res_mmv.mean().plot(figsize = (10,4), linewidth=2.0, color= 'red', label='LR')
+RF_impo_res_mmv.mean().plot(figsize = (10,4), linewidth=2.0, color='orange', label='RF')
+mlp_impo_res_apo.mean().plot(figsize = (10,4), linewidth=2.0, color = 'black', label='MLP')
+plt.xlabel('Residue number', fontsize=12, fontweight='bold')
+plt.ylabel('Residue importance', fontsize=12, fontweight='bold')
+plt.legend(frameon=True, edgecolor='k', framealpha=1)
+plt.savefig('Residue_importance.png', dpi=200, bbox_inches='tight')
+```
+
+![Residue Importance](/Images/Residue_importance.png)
+
+**The most Important Residues**
+
+We can get a sumary of the most important residues and possibly rank them
+
+```python
+imp = LR_impo_res_apo.mean()
+omp = RF_impo_res_apo.mean()
+amp = mlp_impo_res_apo.mean()
+top_lr  = imp.sort_values(ascending=False).head(15)
+top_rf  = omp.sort_values(ascending=False).head(15)
+top_mlp  = amp.sort_values(ascending=False).head(15)
+all_res = sorted(set(top_lr.index).union(top_rf.index).union(top_mlp.index))
+table = pd.DataFrame(index=all_res, columns=["LR_importance", "RF_importance"])
+table.loc[top_lr.index, "LR_importance"] = top_lr.values
+table.loc[top_rf.index, "RF_importance"] = top_rf.values
+table.loc[top_mlp.index, "MLP_importance"] = top_mlp.values
+```
+So, we are down from 77 residues to 30 most important residues 
+```text
+97,106,108,111,112,169,172,180,181,218,223,224,225,227,232,233,234,258,263,264,265,271,272,273,287,288,290,292,367,374
+```
+**Findings and Implications**
+
+Lets first visualize the most important residues of the protein with the ligand bound
+
+![Important_residues_with_ligand](Images/Important_residues_with_ligand.png)
+
+Since this is a distance based derived importance, it most likely captured the residues just next to the ligand in the active site. It is possible that these residues experienced the most fluctuations during the binding episode. However, how much insight can be derived from this is not still very clear
+
+Another thing to note is that it was able to cappture PHE265 involved in significant pi-pi interactions with the bicyclic ring of MMV. Also, it included ASP108 which formed a strong salt bridge with the charged piperidine ring of MMV (All these have been observed in our simulations)
 
