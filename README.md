@@ -12,7 +12,7 @@ The data used here is from a malaria study **(unpublished)**, where we performed
 
 **Here is the hypothesis:**
 
-*Fluctuations and changes in the position of residues around the active can model the differences between a bound and unbound conformation. This fluctuations can be tracked by the **per-atom distances** between all possible residue-atom combinations of residues withing a cut-off distance from the ligand around the active site. How close and changes in this closeness between these atoms can be easily captured with distances*
+*Fluctuations and changes in the position of residues around the active can model the differences between a bound and unbound conformation. This fluctuations can be tracked by the **per-atom distances** between all possible residue-atom combinations of residues within a cut-off distance from the ligand around the active site. How close these atoms are, and changes in this closeness can be easily captured with distances*
 
 To get the data, I defined the set of all **residues within 8Å** from the ligand:
 
@@ -27,7 +27,7 @@ ATOMS=ATOMS <<< "N,CA,C,O,CB,CG,CD,CE,CZ,NE,NE1,NE2,NZ,OE1,OE2,OD1,OD2,SG,SD,CG1
 
 ```
 
-Then I sought to generate unique pairs of each of the residues and the atoms using this [bash file](Link). Next was to generate a list of distance between pairs, for cpptraj, of all the residue-atom lists in a unidirectional way (A→B same as B→A) into *pair_generated.in* file. A crosssection looks like this:
+Then I sought to generate unique pairs of each of the residues and the atoms using this [bash file](Link). Next was to generate a list of distance between pairs, of all the residue-atom lists in a unidirectional way (A→B same as B→A) into *pair_generated.in* file. A crosssection looks like this:
 
 ```text
 distance d_63_CD_100_CG1 :63@CD :100@CG1 out d_63_CD_100_CG1.dat
@@ -35,13 +35,13 @@ distance d_63_CD_100_CG2 :63@CD :100@CG2 out d_63_CD_100_CG2.dat
 distance d_63_CD_100_CD1 :63@CD :100@CD1 out d_63_CD_100_CD1.dat
 .....
 ```
-This was used as the input file for the cpptraj command of ambertools. Due to the massive size of this file (containing a possible 1.8 million distances), it was feed into cpptraj at 5000 lines per time (corresponding to 300+ cycles) using this [script](Link). These data were merged and converted into csv files.
+This was used as the input file for the cpptraj command of ambertools. Due to the massive size of this file (containing a possible 1.8 million distances), it was feed into cpptraj at 5000 lines per time (corresponding to 350+ cycles) using this [script](Link). These data were merged and converted into csv files.
 
 **Concerning our trajectory**; 400ns simulation corresponds to 200000 frames at NTWRX=1000. So, we parsed it at a stride of 20 to give a total of 10,000 frames (or data points)
 
-To further reduce the size of the dataset, every 10th datapoint was sampled from each of the bound and unbound datasets and pooled together to give data consisting of 2000 points only. Since most of the atom-pairs are not present in some residues, we came down to 200K+ possible distances (columns or descriptors). Also, we selected only CA and CB distances between residues, thereby reducing our column length down to  from 1.8 million. To combine this dataset, we defined a new column (State) with categorical variables of "bound" and "unbound" to depict the apo and MMV-bound states. 
+To further reduce the size of the dataset, every 10th datapoint was sampled from each of the bound and unbound datasets and pooled together to give data consisting of 2000 rows only. Since most of the atom-pairs are not present in some residues, we came down to 200K+ possible distances (columns or descriptors). Also, we selected only CA and CB distances between residues, thereby reducing our column length down from 1.8 million. To combine this dataset, we defined a new column (State) with categorical variables of "bound" and "unbound" to depict the apo and MMV-bound states. 
 
-Then this dataset was used as input in our machine learning study. Most of the codes and methodology we will apply below are simple aplication sof codes used by [Brownless et. al. 2025;](https://doi.org/10.1021/acs.jpcb.4c08824)
+Then this dataset was used as input in our machine learning study. Most of the codes and methodology we will apply below are simple aplication of codes used by [Brownless et. al. 2025;](https://doi.org/10.1021/acs.jpcb.4c08824)
 
 
 Load modules and read in the dataset
@@ -55,7 +55,7 @@ import seaborn as sns
 df = pd.read_csv('/path-to-your-file/Full_dataset_Apo_MMV.csv')
 ```
 
-As already mentioned, to reduce the size of the dataset, we selected only CA and CB distances. Also, to handle missing values (empty cells), we filled the "NAN" with 50Å. The rational for this is that such large distances are impossible (since max would be 16-20Å) and depict that no such interactions exist. This choice will also be clear later when we adopt the concept of **Residue Importance** used in the main work.
+As already mentioned, to reduce the size of the dataset, we selected only CA and CB distances. Also, to handle missing values (empty cells), we filled the "NAN" with 50Å. The rational for this is that such large distances are impossible (since maximum feasible distance would be around 16-20Å) and depict that no such interactions exist. This choice will also be clear later when we adopt the concept of **Residue Importance** used in the main work.
 
 ```python
 #Select only columns with CA and or CB distances
