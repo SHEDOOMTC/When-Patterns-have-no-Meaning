@@ -238,7 +238,7 @@ Lets first visualize the most important residues of the protein with the ligand 
 
 ![Important_residues_with_ligand](Images/Important_residues_with_ligand.png)
 
-Since this is a distance based derived importance, it most likely captured the residues just next to the ligand in the active site. It is possible that these residues experienced the most fluctuations during the binding episode. However, how much insight can be derived from this is not still very clear
+Since this is a distance based derived importance, it most likely **captured the residues just next to the ligand in the active site**. It is possible that these residues experienced the most fluctuations during the binding episode. **However, how much insight can be derived from this is not still very clear.**
 
-Another thing to note is that it was able to cappture PHE265 involved in significant pi-pi interactions with the bicyclic ring of MMV. Also, it included ASP108 which formed a strong salt bridge with the charged piperidine ring of MMV (All these have been observed in our simulations)
+**Another thing to note is that, it was able to cappture PHE265 involved in significant pi-pi interactions with the bicyclic ring of MMV. Also, it included ASP108 which formed a strong salt bridge with the charged piperidine ring of MMV (All these have been observed in our simulations)**
 
