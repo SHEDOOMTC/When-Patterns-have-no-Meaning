@@ -1,5 +1,19 @@
 # Model Training and Evalaution
 
+Load Modules
+```python
+from sklearn.metrics import recall_score,accuracy_score,confusion_matrix, f1_score, precision_score, auc,roc_auc_score,roc_curve, precision_recall_curve
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.utils import resample
+from sklearn.model_selection import GridSearchCV,train_test_split
+from sklearn.metrics import (recall_score,accuracy_score,confusion_matrix, f1_score, precision_score, auc,roc_auc_score,roc_curve, precision_recall_curve,classification_report)
+from sklearn.neural_network import MLPClassifier
+from sklearn.ensemble import (RandomForestClassifier,GradientBoostingClassifier)
+from sklearn.linear_model import LogisticRegression
+from sklearn.gaussian_process import GaussianProcessClassifier
+```
+
 **Define Parameters for the model**
 ```python
 RF_tuned_params = {'max_depth': 60, 
